@@ -1,8 +1,6 @@
 --[[
-	Simple M1 Combat System
-	- 4-hit combo with knockback on final hit
-	- Blocking, parry, ragdoll, and sound effects
-	- Uses hitbox scaling, random pitch sounds, and CollectionService tags
+	Simple Combat System
+		by uepV
 --]]
 
 -- SERVICES
