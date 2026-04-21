@@ -10,16 +10,12 @@ local CS = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 
 -- FOLDERS (create missing ones to avoid errors)
-local Remotes = RS:FindFirstChild("Remotes") or Instance.new("Folder", RS)
-Remotes.Name = "Remotes"
-local Modules = RS:FindFirstChild("Modules") or Instance.new("Folder", RS)
-Modules.Name = "Modules"
-local Hitboxes = RS:FindFirstChild("Hitboxes") or Instance.new("Folder", RS)
-Hitboxes.Name = "Hitboxes"
-local Sounds = RS:FindFirstChild("Sounds") or Instance.new("Folder", RS)
-Sounds.Name = "Sounds"
+local Remotes = RS:FindFirstChild("Remotes")
+local Modules = RS:FindFirstChild("Modules")
+local Hitboxes = RS:FindFirstChild("Hitboxes")
+local Sounds = RS:FindFirstChild("Sounds")
 
--- MODULES (try to load, skip if missing)
+-- MODULES
 local zonePlus = require(Modules.Zone)  -- hitbox detection
 local Misc = require(Modules.Misc)      -- ragdoll & disable
 local PunchRock = require(Modules.PunchRock)  -- rock debris
@@ -34,8 +30,8 @@ local getHitAnims = RS.Animations.GetHit
 
 -- SETTINGS
 local M1Debounce = false      -- prevents spam
-local Combo = 1               -- current combo step (1-4)
-local doingCombo = 0          -- which hit we're on (1-4)
+local Combo = 1               -- Combo
+local doingCombo = 0          -- Current combo
 local hit = {}                -- stores already hit targets
 local ImmunityTag = "Immunity"
 
@@ -48,10 +44,10 @@ local function playRandomSound(soundTemplate, parent)
 	Debris:AddItem(sound, 3)
 end
 
--- create hitbox and handle damage / block / parry
+-- create hitbox and handle damage, block and parry
 local function createHitbox(character, hrp, player, currentCombo)
 	local hitbox = Hitboxes.Combat.M1:Clone()
-	hitbox.Size = hitbox.Size * 0.7   -- smaller hitbox
+	hitbox.Size = hitbox.Size * 0.7   -- hitbox
 	hitbox.CFrame = hrp.CFrame
 	hitbox.Parent = hrp
 
@@ -110,18 +106,18 @@ local function createHitbox(character, hrp, player, currentCombo)
 							targetHumanoid:TakeDamage(5)
 							Replicate:FireAllClients("Combat", "HitFX", "NormalHit", targetHRP)
 
-							-- play hurt animation
+							-- play getting hit animation
 							local hurtAnim = targetHumanoid:LoadAnimation(getHitAnims.Hit1)
 							hurtAnim:Play(0.01, 0.7, 1.3)
 
-							-- final combo hit: ragdoll + knockback
+							-- final combo hit with ragdoll + knockback
 							if doingCombo == 4 then
 								PunchRock.Punch(hrp.Position, hrp.CFrame.LookVector, Vector3.new(0, -10, 0), 15, 2, 30, 0.6, 0.9, 15, 3, 2, 0.6, 1)
 								CS:AddTag(target, "Ragdoll")   -- ragdoll for 3 seconds
 								task.delay(3, function()
 									if target and target.Parent then CS:RemoveTag(target, "Ragdoll") end
 								end)
-								-- knockback 25 studs
+								-- knockback
 								local knock = Instance.new("BodyVelocity")
 								knock.MaxForce = Vector3.new(1e6, 1e6, 1e6)
 								knock.Velocity = hrp.CFrame.lookVector * 25
@@ -133,7 +129,7 @@ local function createHitbox(character, hrp, player, currentCombo)
 						end
 					end
 
-					-- remove immunity after a short time
+					-- remove immunity
 					task.delay(0.2, function()
 						CS:RemoveTag(target, ImmunityTag)
 					end)
@@ -142,7 +138,7 @@ local function createHitbox(character, hrp, player, currentCombo)
 		end
 	end
 
-	-- play hit sound only if we actually hit something
+	-- play hit sound if something is hit
 	if anyHit then
 		playRandomSound(Sounds.Hit, character)
 	end
@@ -150,7 +146,7 @@ local function createHitbox(character, hrp, player, currentCombo)
 	Debris:AddItem(hitbox, 0.3)
 end
 
--- listen for attack / block inputs
+-- listen for attack or block output
 attackRemote.OnServerEvent:Connect(function(player, action)
 	local char = player.Character
 	if not char then return end
@@ -175,7 +171,7 @@ attackRemote.OnServerEvent:Connect(function(player, action)
 				humanoid:LoadAnimation(combatAnims.A4),
 			}
 
-			-- set IsAttacking flag (for other scripts)
+			-- set IsAttacking flag for other scripts
 			task.spawn(function()
 				if char:FindFirstChild("Values") and char.Values.IsAttacking then
 					char.Values.IsAttacking.Value = true
@@ -184,10 +180,10 @@ attackRemote.OnServerEvent:Connect(function(player, action)
 				end
 			end)
 
-			-- play fist swing sound with random pitch
+			-- play fist swing sound 
 			playRandomSound(Sounds.FistSwing, char)
 
-			-- play the correct animation based on combo
+			-- play combo animation
 			local current = Combo
 			doingCombo = current
 			anims[current]:Play(0.1, 1, 0.9)   -- slower animation speed
@@ -202,19 +198,19 @@ attackRemote.OnServerEvent:Connect(function(player, action)
 			local hitMarker = false
 			local resetMarker = false
 
-			-- when animation hits the "Hit" marker, create hitbox
+			-- when animation hits the hit marker, register hit
 			anims[current]:GetMarkerReachedSignal("Hit"):Connect(function()
 				hitMarker = true
 				createHitbox(char, hrp, player, doingCombo)
 			end)
 
-			-- when animation hits "DBReset", allow next attack
+			-- when animation hits DBReset, allows the next attack
 			anims[current]:GetMarkerReachedSignal("DBReset"):Connect(function()
 				resetMarker = true
 				M1Debounce = false
 			end)
 
-			-- fallbacks in case markers are missing
+			-- Placeholders if I forget something
 			task.delay(0.5, function()
 				if not hitMarker then
 					createHitbox(char, hrp, player, doingCombo)
